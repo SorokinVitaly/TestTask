@@ -1,0 +1,10 @@
+package com.example.testtask
+
+import androidx.compose.runtime.Immutable
+
+
+@Immutable
+data class ScreenState(
+    val isMainScreen: Boolean = true,
+    val title: String = "",
+)

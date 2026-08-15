@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="app_bar">#FF8800</color>
+    <color name="status_bar_background">#E68200</color>
+    <color name="activity_gray_background">#EAEAEA</color>
+    <color name="cell_background">#FFFFFF</color>
+    <color name="dividers">#E5E5E5</color>
+    <color name="icon">#727272</color>
+    <color name="cell_text">#212121</color>
+</resources>

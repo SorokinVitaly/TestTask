@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">TestTask</string>
+    <string name="default_title">Download Maps</string>
+</resources>

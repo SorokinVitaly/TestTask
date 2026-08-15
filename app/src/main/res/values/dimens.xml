@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="cell_height">52dp</dimen>
+    <dimen name="dividers">1dp</dimen>
+    <dimen name="cell_text">16sp</dimen>
+</resources>
