@@ -7,4 +7,5 @@
     <color name="dividers">#E5E5E5</color>
     <color name="icon">#727272</color>
     <color name="cell_text">#212121</color>
+    <color name="download_complete">#688A23</color>
 </resources>

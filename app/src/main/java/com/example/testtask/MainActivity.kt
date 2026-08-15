@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,6 +36,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
@@ -45,7 +48,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 
 class MainActivity : ComponentActivity() {
-    private val viewModel by viewModels<MainViewModel>()
+    private val viewModel: MainViewModel by viewModels {
+        val parsed = parseEurope(this)
+        MainViewModelFactory(filesDir.absolutePath, parsed)
+    }
 
     private val headerTextModifier = Modifier.padding(10.dp)
     private val headerTextStyle = TextStyle(
@@ -98,13 +104,13 @@ class MainActivity : ComponentActivity() {
                 verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.dividers))
             ) {
                 items(25) { index ->
-                    Text(
-                        text = "Item $index",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color.Red)
-                            .padding(16.dp)
+                    val item = ItemState(
+                        index,
+                        "Item $index",
+                        DownloadState.COMPLETED,
+                        0f
                     )
+                    Item(item)
                 }
             }
         }
@@ -140,9 +146,7 @@ class MainActivity : ComponentActivity() {
                     style = headerTextStyle
                 )
             }
-        }
-    }
-
+        }    }
 
     @Composable
     fun MemoryBar(state: ScreenState) {
@@ -180,9 +184,66 @@ class MainActivity : ComponentActivity() {
                 gapSize = 0.dp,
                 drawStopIndicator = {}
             )
-            Spacer(modifier = Modifier
-                .height(10.dp),
+            Spacer(
+                modifier = Modifier
+                    .height(10.dp),
             )
+        }
+    }
+
+    @Composable
+    fun Item(itemState: ItemState) {
+        val tint = if (itemState.downloadState == DownloadState.COMPLETED) {
+            colorResource(R.color.download_complete)
+        } else {
+            Color.Gray
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(dimensionResource(R.dimen.cell_height))
+                .background(colorResource(R.color.cell_background))
+                .clickable { viewModel.onItemClick(itemState) },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_map),
+                contentDescription = "map icon",
+                tint = tint,
+                modifier = Modifier.padding(start = 20.dp).size(24.dp)
+            )
+            Text(
+                text = itemState.name
+            )
+            DownloadIcon(itemState)
+        }
+    }
+
+    @Composable
+    fun DownloadIcon(itemState: ItemState) {
+        val modifier = Modifier
+            .padding(end = 20.dp)
+            .size(24.dp)
+            .clickable { viewModel.onDownloadClick(itemState) }
+        return when (itemState.downloadState) {
+            DownloadState.NOT_STARTED -> {
+                Icon(
+                    painter = painterResource(R.drawable.ic_action_import),
+                    contentDescription = "download icon",
+                    modifier = modifier
+                )
+            }
+            DownloadState.IN_PROGRESS -> {
+                Icon(
+                    painter = painterResource(R.drawable.ic_action_remove_dark),
+                    contentDescription = "download not available icon",
+                    modifier = modifier
+                )
+            }
+            DownloadState.COMPLETED -> {
+                Spacer(modifier = modifier)
+            }
         }
     }
 }

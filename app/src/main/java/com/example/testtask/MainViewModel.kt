@@ -8,7 +8,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 
-class MainViewModel : ViewModel() {
+class MainViewModel(
+    private val filesDir: String,
+    private val parsed: List<ParsedRegion>
+) : ViewModel() {
     private val _state = MutableStateFlow(ScreenState())
     val state = _state.asStateFlow()
 
@@ -19,6 +22,14 @@ class MainViewModel : ViewModel() {
     }
 
     fun onBackPressed() {
+
+    }
+
+    fun onItemClick(itemState: ItemState) {
+
+    }
+
+    fun onDownloadClick(itemState: ItemState) {
 
     }
 
