@@ -7,4 +7,6 @@ import androidx.compose.runtime.Immutable
 data class ScreenState(
     val isMainScreen: Boolean = true,
     val title: String = "",
+    val totalMemory: Float = 1f,
+    val freeMemory: Float = 1f,
 )
