@@ -5,23 +5,22 @@ import androidx.compose.runtime.Immutable
 
 @Immutable
 data class ScreenState(
-    val isMainScreen: Boolean = true,
-    val title: String = "",
+    val path: List<Region> = emptyList(),
+    val downloads: Map<String, DownloadState> = emptyMap(),
     val totalMemory: Float = 1f,
     val freeMemory: Float = 1f,
 )
 
-enum class DownloadState {
-    NOT_STARTED,
-    IN_PROGRESS,
-    COMPLETED
-}
-
 @Immutable
-data class ItemState(
-    val index: Int,
-    val name: String,
-    val downloadState: DownloadState,
-    val downloadProgress: Float,
+data class LocalState(
+    val isMainScreen: Boolean,
+    val title: String,
+    val items: List<Region>
 )
 
+sealed interface DownloadState {
+    data object NotStarted : DownloadState
+    data class Downloading(val progress: Float) : DownloadState
+    data object Completed : DownloadState
+    data class Error(val message: String) : DownloadState
+}

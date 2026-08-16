@@ -1,36 +1,38 @@
 package com.example.testtask
 
+import android.app.Application
 import android.os.Environment
 import android.os.StatFs
-import androidx.lifecycle.ViewModel
+import android.util.Log
+import androidx.lifecycle.AndroidViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 
-class MainViewModel(
-    private val filesDir: String,
-    private val parsed: List<ParsedRegion>
-) : ViewModel() {
+class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _state = MutableStateFlow(ScreenState())
     val state = _state.asStateFlow()
 
     private val dataPath = Environment.getDataDirectory().path
+    //    private val filesDir: String,
 
     init {
         calcFreeMemory()
     }
 
     fun onBackPressed() {
-
+        _state.update { it.copy(path = it.path.dropLast(1)) }
     }
 
-    fun onItemClick(itemState: ItemState) {
-
+    fun onItemClick(region: Region) {
+        if (region.children.isNotEmpty()) {
+            _state.update { it.copy(path = it.path + region) }
+        }
     }
 
-    fun onDownloadClick(itemState: ItemState) {
-
+    fun onDownloadClick(region: Region) {
+        Log.e(null,"onDownloadClick: ${region.downloadName}")
     }
 
     private fun calcFreeMemory() {

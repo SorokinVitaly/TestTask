@@ -4,14 +4,14 @@ import android.content.Context
 import org.xmlpull.v1.XmlPullParser
 
 
-data class ParsedRegion(
+data class Region(
     val name: String,
-    val map: Boolean,
     val downloadName: String,
-    val children: List<ParsedRegion>
+    val isMapExists: Boolean,
+    val children: List<Region>
 )
 
-fun parseEurope(context: Context): List<ParsedRegion> {
+fun parseXml(context: Context): List<Region> {
     val parser = context.resources.getXml(R.xml.regions)
     while (parser.next() != XmlPullParser.END_DOCUMENT) {
         if (parser.eventType == XmlPullParser.START_TAG &&
@@ -28,8 +28,8 @@ private fun parseChildren(
     parser: XmlPullParser,
     inheritedPrefix: String?,
     inheritedSuffix: String?
-): List<ParsedRegion> {
-    val result = mutableListOf<ParsedRegion>()
+): List<Region> {
+    val result = mutableListOf<Region>()
     while (parser.next() != XmlPullParser.END_TAG) {
         if (parser.eventType == XmlPullParser.START_TAG &&
             parser.name == "region"
@@ -48,7 +48,7 @@ private fun parseRegion(
     parser: XmlPullParser,
     inheritedPrefix: String?,
     inheritedSuffix: String?
-): ParsedRegion {
+): Region {
     val name = parser.getAttributeValue(null, "name")
     val map = parser
         .getAttributeValue(null, "map")
@@ -76,10 +76,10 @@ private fun parseRegion(
         inheritedPrefix = childPrefix,
         inheritedSuffix = childSuffix
     )
-    return ParsedRegion(
-        name = name,
-        map = map,
+    return Region(
+        name = name.capitalizeFirst(),
         downloadName = downloadName,
+        isMapExists = map,
         children = children
     )
 }
@@ -103,8 +103,10 @@ private fun buildDownloadName(
     prefix: String?,
     suffix: String?
 ): String = when {
-    prefix != null && suffix != null -> "${prefix}_${name}_${suffix}"
-    suffix != null -> "${name}_${suffix}"
-    prefix != null -> "${prefix}_${name}"
-    else -> name
-}
+        prefix != null && suffix != null -> "${prefix}_${name}_${suffix}"
+        suffix != null -> "${name}_${suffix}"
+        prefix != null -> "${prefix}_${name}"
+        else -> name
+    }.capitalizeFirst()
+
+private fun String.capitalizeFirst() = replaceFirstChar { it.titlecase() }

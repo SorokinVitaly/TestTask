@@ -22,12 +22,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,10 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: MainViewModel by viewModels {
-        val parsed = parseEurope(this)
-        MainViewModelFactory(filesDir.absolutePath, parsed)
-    }
+    private val viewModel: MainViewModel by viewModels()
 
     private val headerTextModifier = Modifier.padding(10.dp)
     private val headerTextStyle = TextStyle(
@@ -59,6 +60,8 @@ class MainActivity : ComponentActivity() {
         fontSize = 20.sp,
         color = Color.White
     )
+
+    private val regions by lazy { parseXml(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,18 +84,41 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun MainScreen(state: ScreenState) {
+        val (localState, key) = if (state.path.isEmpty()) {
+            LocalState(
+                true,
+                "",
+                regions
+            ) to ROOT
+        } else {
+            val currentRegion = state.path.last()
+            LocalState(
+                false,
+                currentRegion.name,
+                currentRegion.children
+            ) to currentRegion.downloadName
+        }
+        val listStates = remember {
+            mutableStateMapOf<String, LazyListState>()
+        }
+        val listState = listStates.getOrPut(key) {
+            LazyListState()
+        }
+
         Column(
             modifier = Modifier
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .fillMaxSize()
                 .background(colorResource(R.color.activity_gray_background))
         ) {
-            TopBar(state)
-            if (state.isMainScreen) {
+            TopBar(localState)
+            if (localState.isMainScreen) {
                 MemoryBar(state)
             }
-            val paddingTop = if (state.isMainScreen) 16.dp else dimensionResource(R.dimen.dividers)
+            val paddingTop =
+                if (localState.isMainScreen) 16.dp else dimensionResource(R.dimen.dividers)
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -103,21 +129,19 @@ class MainActivity : ComponentActivity() {
                     ),
                 verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.dividers))
             ) {
-                items(25) { index ->
-                    val item = ItemState(
-                        index,
-                        "Item $index",
-                        DownloadState.COMPLETED,
-                        0f
-                    )
-                    Item(item)
+                items(
+                    items = localState.items,
+                    key = { it.downloadName }
+                ) {
+                    val downloadState = state.downloads[it.downloadName] ?: DownloadState.NotStarted
+                    Item(it, downloadState)
                 }
             }
         }
     }
 
     @Composable
-    fun TopBar(state: ScreenState) {
+    fun TopBar(localState: LocalState) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -126,7 +150,7 @@ class MainActivity : ComponentActivity() {
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .height(64.dp)
         ) {
-            if (state.isMainScreen) {
+            if (localState.isMainScreen) {
                 Text(
                     text = stringResource(R.string.default_title),
                     modifier = headerTextModifier,
@@ -141,7 +165,7 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 Text(
-                    text = state.title,
+                    text = localState.title,
                     modifier = headerTextModifier,
                     style = headerTextStyle
                 )
@@ -184,16 +208,13 @@ class MainActivity : ComponentActivity() {
                 gapSize = 0.dp,
                 drawStopIndicator = {}
             )
-            Spacer(
-                modifier = Modifier
-                    .height(10.dp),
-            )
+            Spacer(modifier = Modifier.height(10.dp))
         }
     }
 
     @Composable
-    fun Item(itemState: ItemState) {
-        val tint = if (itemState.downloadState == DownloadState.COMPLETED) {
+    fun Item(region: Region, downloadState: DownloadState) {
+        val tint = if (downloadState is DownloadState.Completed) {
             colorResource(R.color.download_complete)
         } else {
             Color.Gray
@@ -203,7 +224,7 @@ class MainActivity : ComponentActivity() {
                 .fillMaxWidth()
                 .height(dimensionResource(R.dimen.cell_height))
                 .background(colorResource(R.color.cell_background))
-                .clickable { viewModel.onItemClick(itemState) },
+                .clickable { viewModel.onItemClick(region) },
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -211,39 +232,49 @@ class MainActivity : ComponentActivity() {
                 painter = painterResource(R.drawable.ic_map),
                 contentDescription = "map icon",
                 tint = tint,
-                modifier = Modifier.padding(start = 20.dp).size(24.dp)
+                modifier = Modifier
+                    .padding(start = 20.dp)
+                    .size(24.dp)
             )
             Text(
-                text = itemState.name
+                text = region.name
             )
-            DownloadIcon(itemState)
+            DownloadIcon(region, downloadState)
         }
     }
 
     @Composable
-    fun DownloadIcon(itemState: ItemState) {
+    fun DownloadIcon(region: Region, downloadState: DownloadState) {
         val modifier = Modifier
             .padding(end = 20.dp)
             .size(24.dp)
-            .clickable { viewModel.onDownloadClick(itemState) }
-        return when (itemState.downloadState) {
-            DownloadState.NOT_STARTED -> {
-                Icon(
-                    painter = painterResource(R.drawable.ic_action_import),
-                    contentDescription = "download icon",
-                    modifier = modifier
-                )
+        return when (downloadState) {
+            is DownloadState.NotStarted -> {
+                if (region.isMapExists) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_action_import),
+                        contentDescription = "download icon",
+                        modifier = modifier.clickable { viewModel.onDownloadClick(region) }
+                    )
+                } else {
+                    Spacer(modifier = modifier)
+                }
             }
-            DownloadState.IN_PROGRESS -> {
+            is DownloadState.Downloading -> {
                 Icon(
                     painter = painterResource(R.drawable.ic_action_remove_dark),
                     contentDescription = "download not available icon",
                     modifier = modifier
                 )
             }
-            DownloadState.COMPLETED -> {
+            is DownloadState.Completed,
+            is DownloadState.Error -> {
                 Spacer(modifier = modifier)
             }
         }
+    }
+
+    companion object {
+        const val ROOT = "root"
     }
 }
