@@ -24,3 +24,7 @@ sealed interface DownloadState {
     data object Completed : DownloadState
     data class Error(val message: String) : DownloadState
 }
+
+sealed interface UiEvent {
+    data class ShowToast(val message: String) : UiEvent
+}

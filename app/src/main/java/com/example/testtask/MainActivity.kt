@@ -1,6 +1,7 @@
 package com.example.testtask
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -29,6 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
@@ -38,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -53,6 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
+    private val regions by lazy { parseXml(this) }
 
     private val headerTextModifier = Modifier.padding(10.dp)
     private val headerTextStyle = TextStyle(
@@ -60,8 +64,6 @@ class MainActivity : ComponentActivity() {
         fontSize = 20.sp,
         color = Color.White
     )
-
-    private val regions by lazy { parseXml(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,6 +80,7 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
+            ProcessUiEvents()
             MainScreen(state)
         }
     }
@@ -170,7 +173,8 @@ class MainActivity : ComponentActivity() {
                     style = headerTextStyle
                 )
             }
-        }    }
+        }
+    }
 
     @Composable
     fun MemoryBar(state: ScreenState) {
@@ -260,16 +264,34 @@ class MainActivity : ComponentActivity() {
                     Spacer(modifier = modifier)
                 }
             }
-            is DownloadState.Downloading -> {
+            is DownloadState.Downloading,
+            is DownloadState.Error -> {
                 Icon(
                     painter = painterResource(R.drawable.ic_action_remove_dark),
                     contentDescription = "download not available icon",
                     modifier = modifier
                 )
             }
-            is DownloadState.Completed,
-            is DownloadState.Error -> {
+            is DownloadState.Completed -> {
                 Spacer(modifier = modifier)
+            }
+        }
+    }
+
+    @Composable
+    fun ProcessUiEvents() {
+        val context = LocalContext.current
+        LaunchedEffect(Unit) {
+            viewModel.events.collect { event ->
+                when (event) {
+                    is UiEvent.ShowToast -> {
+                        Toast.makeText(
+                            context,
+                            event.message,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
             }
         }
     }

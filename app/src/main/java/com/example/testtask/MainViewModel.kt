@@ -3,21 +3,30 @@ package com.example.testtask
 import android.app.Application
 import android.os.Environment
 import android.os.StatFs
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _state = MutableStateFlow(ScreenState())
     val state = _state.asStateFlow()
+    private val _events = MutableSharedFlow<UiEvent>()
+    val events = _events.asSharedFlow()
 
+    private val mapManager = MapManager(getApplication<Application>().filesDir)
     private val dataPath = Environment.getDataDirectory().path
-    //    private val filesDir: String,
 
     init {
+        mapManager.removeTmpFiles()
+        val maps: Map<String, DownloadState> = mapManager.findDownloadedMaps()
+            .associateWith { DownloadState.Completed }
+        _state.update { it.copy(downloads = it.downloads + maps) }
         calcFreeMemory()
     }
 
@@ -32,7 +41,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onDownloadClick(region: Region) {
-        Log.e(null,"onDownloadClick: ${region.downloadName}")
+        viewModelScope.launch {
+            try {
+                mapManager.downloadMap(region.downloadName) {}
+                updateDownloadState(region.downloadName, DownloadState.Completed)
+            } catch(t: Throwable) {
+                /**
+                 * In real project you should map data layer exception to presentation layer
+                 * exception to display a clear and readable message to user.
+                 * In this case for debugging purposes I'm leaving original exception
+                 * */
+                val message = t.message ?: "Unknown error"
+                updateDownloadState(region.downloadName, DownloadState.Error(message))
+                _events.emit(UiEvent.ShowToast(message))
+            }
+        }
+    }
+
+    private fun updateDownloadState(name: String, state: DownloadState) {
+        _state.update { it.copy(downloads = it.downloads + (name to state)) }
     }
 
     private fun calcFreeMemory() {
