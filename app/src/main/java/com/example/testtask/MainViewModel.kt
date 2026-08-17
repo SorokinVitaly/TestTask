@@ -5,12 +5,14 @@ import android.os.Environment
 import android.os.StatFs
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.collections.set
 
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -21,11 +23,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val mapManager = MapManager(getApplication<Application>().filesDir)
     private val dataPath = Environment.getDataDirectory().path
+    private val downloadJobs = mutableMapOf<String, Job>()
 
     init {
         mapManager.removeTmpFiles()
-        val maps: Map<String, DownloadState> = mapManager.findDownloadedMaps()
-            .associateWith { DownloadState.Completed }
+        val maps: Map<String, DownloadState> =
+            mapManager.findDownloadedMaps().associateWith { DownloadState.Completed }
         _state.update { it.copy(downloads = it.downloads + maps) }
         calcFreeMemory()
     }
@@ -41,21 +44,34 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onDownloadClick(region: Region) {
-        viewModelScope.launch {
+        val name = region.downloadName
+        downloadJobs[name] = viewModelScope.launch {
             try {
-                mapManager.downloadMap(region.downloadName) {}
-                updateDownloadState(region.downloadName, DownloadState.Completed)
+                mapManager.downloadMap(name) { progress ->
+                    updateDownloadState(name, DownloadState.Downloading(progress))
+                }
+                updateDownloadState(name, DownloadState.Completed)
+                calcFreeMemory()
             } catch(t: Throwable) {
                 /**
                  * In real project you should map data layer exception to presentation layer
                  * exception to display a clear and readable message to user.
-                 * In this case for debugging purposes I'm leaving original exception
+                 * In this case for debugging purposes I'm leaving original exception.
+                 *
+                 * If download error occurs (this behavior is not described in the task),
+                 * re-downloading is possible
                  * */
                 val message = t.message ?: "Unknown error"
-                updateDownloadState(region.downloadName, DownloadState.Error(message))
+                updateDownloadState(name, DownloadState.Error(message))
                 _events.emit(UiEvent.ShowToast(message))
             }
         }
+        updateDownloadState(name, DownloadState.Downloading(0f))
+    }
+
+    fun onCancelClick(region: Region) {
+        downloadJobs[region.name]?.cancel()
+        //updateDownloadState(region.name, DownloadState.NotStarted)
     }
 
     private fun updateDownloadState(name: String, state: DownloadState) {

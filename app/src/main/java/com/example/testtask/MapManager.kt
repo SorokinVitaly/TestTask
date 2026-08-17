@@ -11,14 +11,14 @@ import java.net.URL
 
 
 class MapManager(private val filesDir: File) {
-
+    private val dispatcher = Dispatchers.IO.limitedParallelism(1)
     private val mapDir: File
         get() = File(filesDir, DIR_MAPS).apply {
             mkdirs()
         }
 
     suspend fun downloadMap(downloadName: String, onProgress: (Float) -> Unit) =
-        withContext(Dispatchers.IO) {
+        withContext(dispatcher) {
             val fileName = downloadName + NAME_SUFFIX
             val destination = File(mapDir, fileName)
             val tempFile = File(mapDir, fileName + TMP)

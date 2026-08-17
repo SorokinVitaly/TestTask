@@ -232,19 +232,47 @@ class MainActivity : ComponentActivity() {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_map),
-                contentDescription = "map icon",
-                tint = tint,
+            MapIcon(tint)
+            Column(
                 modifier = Modifier
-                    .padding(start = 20.dp)
-                    .size(24.dp)
-            )
-            Text(
-                text = region.name
-            )
+                    .weight(1f)
+                    .padding(start = 10.dp,end = 10.dp)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = region.name,
+                    modifier = Modifier.padding(bottom = 10.dp),
+                )
+                if (downloadState is DownloadState.Downloading) {
+                    LinearProgressIndicator(
+                        progress = { downloadState.progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp),
+                        color = Color.Blue,
+                        trackColor = Color.Gray,
+                        strokeCap = StrokeCap.Square,
+                        gapSize = 0.dp,
+                        drawStopIndicator = {}
+                    )
+                }
+            }
             DownloadIcon(region, downloadState)
         }
+    }
+
+    @Composable
+    fun MapIcon(tint: Color) {
+        Icon(
+            painter = painterResource(R.drawable.ic_map),
+            contentDescription = "map icon",
+            tint = tint,
+            modifier = Modifier
+                .padding(start = 20.dp)
+                .size(24.dp)
+        )
     }
 
     @Composable
@@ -253,7 +281,8 @@ class MainActivity : ComponentActivity() {
             .padding(end = 20.dp)
             .size(24.dp)
         return when (downloadState) {
-            is DownloadState.NotStarted -> {
+            is DownloadState.NotStarted,
+            is DownloadState.Error -> {
                 if (region.isMapExists) {
                     Icon(
                         painter = painterResource(R.drawable.ic_action_import),
@@ -264,12 +293,11 @@ class MainActivity : ComponentActivity() {
                     Spacer(modifier = modifier)
                 }
             }
-            is DownloadState.Downloading,
-            is DownloadState.Error -> {
+            is DownloadState.Downloading -> {
                 Icon(
                     painter = painterResource(R.drawable.ic_action_remove_dark),
                     contentDescription = "download not available icon",
-                    modifier = modifier
+                    modifier = modifier.clickable { viewModel.onCancelClick(region) }
                 )
             }
             is DownloadState.Completed -> {
