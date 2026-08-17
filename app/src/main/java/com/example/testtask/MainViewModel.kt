@@ -45,6 +45,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onDownloadClick(region: Region) {
         val name = region.downloadName
+        updateDownloadState(name, DownloadState.Downloading(0f))
         downloadJobs[name] = viewModelScope.launch {
             try {
                 mapManager.downloadMap(name) { progress ->
@@ -52,7 +53,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 updateDownloadState(name, DownloadState.Completed)
                 calcFreeMemory()
-            } catch(t: Throwable) {
+            } catch (t: Throwable) {
                 /**
                  * In real project you should map data layer exception to presentation layer
                  * exception to display a clear and readable message to user.
@@ -64,9 +65,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val message = t.message ?: "Unknown error"
                 updateDownloadState(name, DownloadState.Error(message))
                 _events.emit(UiEvent.ShowToast(message))
+            } finally {
+                downloadJobs.remove(name)
             }
         }
-        updateDownloadState(name, DownloadState.Downloading(0f))
     }
 
     fun onCancelClick(region: Region) {
